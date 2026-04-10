@@ -1,97 +1,225 @@
 import { useEffect, useRef, useState } from 'react'
-import { createStompClient, subscribeBlueprint } from './lib/stompClient.js'
-import { createSocket } from './lib/socketIoClient.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080' // Spring
-const IO_BASE  = import.meta.env.VITE_IO_BASE  ?? 'http://localhost:3001' // Node/Socket.IO
+// Layout & UI Components
+import ControlBar from './components/layout/ControlBar'
+import AuthorPanel from './components/author/AuthorPanel'
+import BlueprintCanvas from './components/canvas/BlueprintCanvas'
+import Toast from './components/common/Toast'
+
+// Services
+import { fetchBlueprints, fetchPoints, saveBlueprintApi, deleteBlueprintApi } from './services/apiService'
+import { createSocket } from './services/socketService'
+import { createStompClient, subscribeBlueprint } from './services/stompService'
+
+// Styles
+import './styles/App.css'
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? window.location.origin
+const IO_BASE  = import.meta.env.VITE_IO_BASE  ?? window.location.origin
 
 export default function App() {
-  const [tech, setTech] = useState('stomp')
-  const [author, setAuthor] = useState('juan')
-  const [name, setName] = useState('plano-1')
+  const [tech, setTech] = useState('socketio')
+  const [author, setAuthor] = useState('anonymous')
+  const [name, setName] = useState('')
+  const [apiUrl, setApiUrl] = useState(API_BASE)
+  const [blueprints, setBlueprints] = useState([])
+  const [points, setPoints] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState('disconnected') 
+  const [toasts, setToasts] = useState([])
+  
   const canvasRef = useRef(null)
-
   const stompRef = useRef(null)
   const unsubRef = useRef(null)
   const socketRef = useRef(null)
 
-  useEffect(() => {
-    fetch(`${tech==='stomp'?API_BASE:IO_BASE}/api/blueprints/${author}/${name}`)
-      .then(r=>r.json())
-      .then(drawAll)
-  }, [tech, author, name])
-
-  function drawAll(bp) {
-    const ctx = canvasRef.current?.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0,0,600,400)
-    ctx.beginPath()
-    bp.points.forEach((p,i)=> {
-      if (i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y)
-    })
-    ctx.stroke()
+  const showToast = (msg, duration = 3000) => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, msg }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration)
   }
 
+  // -- CRUD Actions --
+
+  async function getBlueprints() {
+    if (!author) return showToast('Introduce un autor')
+    setLoading(true)
+    try {
+      const data = await fetchBlueprints(apiUrl, author)
+      setBlueprints(data)
+      showToast(`Cargados ${data.length} planos`)
+    } catch (e) {
+      showToast('Error al listar planos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function getPointsData(authorName, bpName) {
+    try {
+      const data = await fetchPoints(apiUrl, authorName, bpName)
+      setPoints(data.points || [])
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  async function saveBlueprint() {
+    if (!name) return
+    const payload = { author, name, points }
+    try {
+      const response = await saveBlueprintApi(apiUrl, payload)
+      if (response.ok) {
+        await getBlueprints()
+        showToast('Guardado con éxito')
+      } else {
+        showToast('Error al guardar')
+      }
+    } catch (e) {
+      showToast('Error de red al guardar')
+    }
+  }
+
+  async function deleteBlueprint() {
+    if (!name || !confirm('¿Eliminar plano?')) return
+    try {
+      await deleteBlueprintApi(apiUrl, author, name)
+      setPoints([])
+      setName('')
+      getBlueprints()
+      showToast('Borrado')
+    } catch (e) {
+      showToast('Error al eliminar')
+    }
+  }
+
+  function createNew() {
+    const newName = prompt('Nombre del nuevo plano:')
+    if (newName) {
+      setName(newName)
+      setPoints([])
+    }
+  }
+
+  // -- Canvas Logic --
+
   useEffect(() => {
+    const ctx = canvasRef.current?.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, 900, 600)
+    ctx.strokeStyle = '#2563eb'
+    ctx.lineWidth = 3
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    
+    ctx.beginPath()
+    points.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y)
+      else ctx.lineTo(p.x, p.y)
+    })
+    ctx.stroke()
+  }, [points])
+
+  // -- Real-Time sync --
+
+  useEffect(() => {
+    if (!author || !name || tech === 'none') {
+      setStatus('disconnected')
+      return
+    }
+
+    setStatus('connecting')
     unsubRef.current?.(); unsubRef.current = null
     stompRef.current?.deactivate?.(); stompRef.current = null
     socketRef.current?.disconnect?.(); socketRef.current = null
 
     if (tech === 'stomp') {
-      const client = createStompClient(API_BASE)
+      const client = createStompClient(apiUrl)
       stompRef.current = client
       client.onConnect = () => {
-        unsubRef.current = subscribeBlueprint(client, author, name, (upd)=> {
-          drawAll({ points: upd.points })
+        setStatus('connected')
+        unsubRef.current = subscribeBlueprint(client, author, name, (upd) => {
+          if (upd.points) setPoints(upd.points)
+          else if (upd.point) setPoints(prev => [...prev, upd.point])
         })
       }
+      client.onDisconnect = () => setStatus('disconnected')
       client.activate()
     } else {
       const s = createSocket(IO_BASE)
       socketRef.current = s
       const room = `blueprints.${author}.${name}`
-      s.emit('join-room', room)
-      s.on('blueprint-update', (upd)=> drawAll({ points: upd.points }))
+      s.on('connect', () => {
+        setStatus('connected')
+        s.emit('join-room', room)
+      })
+      s.on('disconnect', () => setStatus('disconnected'))
+      s.on('blueprint-update', (upd) => {
+        if (upd.points) setPoints(upd.points)
+        else if (upd.point) setPoints(prev => [...prev, upd.point])
+      })
     }
+
     return () => {
-      unsubRef.current?.(); unsubRef.current = null
+      unsubRef.current?.()
       stompRef.current?.deactivate?.()
       socketRef.current?.disconnect?.()
     }
-  }, [tech, author, name])
+  }, [tech, author, name, apiUrl])
 
-  function onClick(e) {
-    const rect = e.target.getBoundingClientRect()
-    const point = { x: Math.round(e.clientX - rect.left), y: Math.round(e.clientY - rect.top) }
+  function onCanvasClick(e) {
+    if (!name) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = Math.round((e.clientX - rect.left) * (canvasRef.current.width / rect.width))
+    const y = Math.round((e.clientY - rect.top) * (canvasRef.current.height / rect.height))
+    const point = { x, y }
+
+    setPoints(prev => [...prev, point])
 
     if (tech === 'stomp' && stompRef.current?.connected) {
-      stompRef.current.publish({ destination: '/app/draw', body: JSON.stringify({ author, name, point }) })
+      stompRef.current.publish({ 
+        destination: '/app/draw', 
+        body: JSON.stringify({ author, name, point }) 
+      })
     } else if (tech === 'socketio' && socketRef.current?.connected) {
       const room = `blueprints.${author}.${name}`
       socketRef.current.emit('draw-event', { room, author, name, point })
     }
   }
 
+  const totalAuthorPoints = blueprints.reduce((sum, bp) => sum + (bp.points?.length || 0), 0)
+
   return (
-    <div style={{fontFamily:'Inter, system-ui', padding:16, maxWidth:900}}>
-      <h2>BluePrints RT – Socket.IO vs STOMP</h2>
-      <div style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-        <label>Tecnología:</label>
-        <select value={tech} onChange={e=>setTech(e.target.value)}>
-          <option value="stomp">STOMP (Spring)</option>
-          <option value="socketio">Socket.IO (Node)</option>
-        </select>
-        <input value={author} onChange={e=>setAuthor(e.target.value)} placeholder="autor"/>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder="plano"/>
-      </div>
-      <canvas
-        ref={canvasRef}
-        width={600}
-        height={400}
-        style={{border:'1px solid #ddd', borderRadius:12}}
-        onClick={onClick}
+    <div className="app-container">
+      <ControlBar 
+        tech={tech} 
+        setTech={setTech} 
+        status={status} 
       />
-      <p style={{opacity:.7, marginTop:8}}>Tip: abre 2 pestañas y dibuja alternando para ver la colaboración.</p>
+
+      <div className="layout">
+        <AuthorPanel 
+          author={author}
+          setAuthor={setAuthor}
+          getBlueprints={getBlueprints}
+          blueprints={blueprints}
+          loading={loading}
+          setName={setName}
+          getPoints={getPointsData}
+          totalAuthorPoints={totalAuthorPoints}
+        />
+
+        <BlueprintCanvas 
+          canvasRef={canvasRef}
+          name={name}
+          createNew={createNew}
+          saveBlueprint={saveBlueprint}
+          deleteBlueprint={deleteBlueprint}
+          onCanvasClick={onCanvasClick}
+        />
+      </div>
+
+      <Toast toasts={toasts} />
     </div>
   )
 }
