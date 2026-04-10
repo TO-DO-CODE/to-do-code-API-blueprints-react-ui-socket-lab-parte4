@@ -95,7 +95,7 @@ Hemos facilitado la puesta en marcha mediante Docker Compose.
 ## 📹 Demostración en Video
 En el siguiente video mostramos el funcionamiento del sistema, incluyendo las operaciones CRUD y la colaboración en vivo entre dos clientes distintos.
 
-<video controls src="20260410-0033-45.3514728.mp4" title="Demostración BluePrints RT"></video>
+https://www.youtube.com/watch?v=VVjxws2TzSY
 
 ---
 
