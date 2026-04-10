@@ -1,10 +1,16 @@
 # Laboratorio 4 — BluePrints en Tiempo Real (Sockets & STOMP)
 
 ## 👥 Integrantes
+<<<<<<< HEAD
 *   María Paula Rodríguez Muñoz
 *   Juan Andrés Suárez
 *   Juan Pablo Nieto
 *   Tomás Felipe Ramírez
+=======
+*   [Nombre del Integrante 1]
+*   [Nombre del Integrante 2]
+*   [Nombre del Integrante 3]
+>>>>>>> 82666d4896b510f6e22b55d375a2a874e28111a3
 
 ---
 
@@ -22,6 +28,7 @@ Hemos diseñado una arquitectura basada en microservicios y contenedores para ga
 *   **Backend (RT)**: Un servidor Node.js que gestiona las salas (rooms) y el broadcast de eventos de dibujo.
 *   **Reverse Proxy (Nginx)**: Actúa como punto de entrada único, redirigiendo el tráfico HTTP y los WebSockets (Socket.IO y STOMP) hacia los servicios correspondientes.
 
+<<<<<<< HEAD
 ![alt text](docs/image-3.png)
 
 ---
@@ -30,6 +37,12 @@ Hemos diseñado una arquitectura basada en microservicios y contenedores para ga
 
 ![alt text](docs/lab7.jpg)
 
+=======
+![alt text](../../Downloads/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/docs/image-3.png)
+
+---
+
+>>>>>>> 82666d4896b510f6e22b55d375a2a874e28111a3
 ## 🧩 Implementación Técnica
 
 ### 1. Gestión CRUD (REST)
@@ -39,7 +52,11 @@ Implementamos la integración completa con la API de BluePrints para las operaci
 *   **Persistencia**: Permitimos guardar los cambios realizados en el canvas mediante `POST` y `PUT`.
 
 ---
+<<<<<<< HEAD
 ![alt text](docs/image.png)  
+=======
+![alt text](../../Downloads/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/docs/image.png)  
+>>>>>>> 82666d4896b510f6e22b55d375a2a874e28111a3
 
 ---
 
@@ -50,7 +67,11 @@ Nuestra implementación soporta dos protocolos de comunicación asincrónica:
 *   **STOMP (Spring Boot)**: Implementamos la lógica de suscripción a tópicos específicos. El cliente publica en `/app/draw` y el servidor retransmite a `/topic/blueprints.{author}.{name}`.
 
 ---
+<<<<<<< HEAD
 ![alt text](docs/image-1.png)
+=======
+![alt text](../../Downloads/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/docs/image-1.png)
+>>>>>>> 82666d4896b510f6e22b55d375a2a874e28111a3
 ---
 
 ## 📊 Análisis y Comparativa: Socket.IO vs STOMP
@@ -84,7 +105,11 @@ Hemos facilitado la puesta en marcha mediante Docker Compose.
 3.  Acceder a la aplicación en: `http://localhost:5173`.
 
 ---
+<<<<<<< HEAD
 ![alt text](docs/image-2.png)
+=======
+![alt text](../../Downloads/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/Lab-7---Parte-4-BluePrints-API---React---UI-Socket/docs/image-2.png)
+>>>>>>> 82666d4896b510f6e22b55d375a2a874e28111a3
 ---
 
 ## 📹 Demostración en Video
