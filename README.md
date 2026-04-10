@@ -42,7 +42,7 @@ Implementamos la integración completa con la API de BluePrints para las operaci
 *   **Persistencia**: Permitimos guardar los cambios realizados en el canvas mediante `POST` y `PUT`.
 
 ---
-<<<<<<< HEAD
+
 ![alt text](docs/image.png)  
 
 ---
